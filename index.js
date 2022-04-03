@@ -1,59 +1,32 @@
-const { ApolloServer, gql } = require('apollo-server');
+const express = require('express')
+const { ApolloServer } = require('apollo-server-express')
+const expressPlayground = require('graphql-playground-middleware-express').default
+const { readFileSync } = require('fs')
 
-// A schema is a collection of type definitions (hence "typeDefs")
-// that together define the "shape" of queries that are executed against
-// your data.
-const typeDefs = gql`
-  # Comments in GraphQL strings (such as this one) start with the hash (#) symbol.
-  
-  type Photo {
-    id: ID!
-    url: String!
-    name: String!
-    description: String
-  }
-  
-  type Query {
-    totalPhotos: Int!
-    allPhotos: [Photo!]!
-  }
-  
-  type Mutation {
-    postPhoto(name: String! description: String): Photo!
-  }
-`;
+var typeDefs = readFileSync('./typeDefs.graphql', 'UTF-8')
+const resolvers = require('./resolvers')
 
-var _id = 0;
-var photos = []
-
-
-// Resolvers define the technique for fetching the types defined in the
-// schema. This resolver retrieves books from the "books" array above.
-const resolvers = {
-    Query: {
-        totalPhotos: () => photos.length,
-        allPhotos: () => photos,
-    },
-    Mutation: {
-        postPhoto(parent,args){
-            var newPhoto = {
-                id: _id++,
-                ...args
-            }
-            photos.push(newPhoto)
-            return newPhoto
-        }
-    },
-    Photo: {
-        url: parent => 'http://yousite.com/img/${parent.id}.jpg'
-    }
-};
+async function start() {
+    const app = express()
 
 // The ApolloServer constructor requires two parameters: your schema
 // definition and your set of resolvers.
-const server = new ApolloServer({ typeDefs, resolvers });
+    const server = new ApolloServer({ typeDefs, resolvers });
 
-// The `listen` method launches a web server.
-server.listen().then(({ url }) => {
-    console.log(`🚀  Server ready at ${url}`);
-});
+    await server.start();
+    server.applyMiddleware({ app })
+
+    app.get('/',(req, res) => res.end(`Welcome to the PhotoShare API`))
+    app.get('/playground', expressPlayground({ endpoint: '/graphql' }))
+
+    app.listen({ port: 4000 }, () =>
+        console.log(`GraphQL Server running at http://localhost:4000${server.graphqlPath}`)
+    )
+}
+
+start()
+
+
+
+
+
